@@ -7,15 +7,22 @@ This is a template created by Diego Pacheco which the goal to better describe a 
 ### 1. 🎯 Problem Statement and Context
 
 What is the problem? What is the context of the problem?
-Example:
-```
-The problem is to sell shoes online, the main issue with buying shoes online is 
-how we will make our users buy shoes if they cannot make them fit? We would need
-to have a huge selectio and find ways to people find they perpect show at the 
-same time market teams would need to change campains all the time, we need to
-have way to make things fast and dynamic.
-```
-Recomended Reading: [Breaking problems down](http://diego-pacheco.blogspot.com/2021/10/breaking-problems-down.html)
+
+You must design a realtime voting system with the following requirements:
+- Never lose data
+- Be secure and prevent bots and bad actors
+- Handle 300M users
+- Handle peak of 250k RPS
+- Must ensure users vote only once
+- Should be realtime
+
+Restrictions:
+- No serverless
+- No MongoDB
+- No on-premise, GCP or Azure
+- No Openshift
+- No mainframes
+- No monolithic solutions
 
 ### 2. 🎯 Goals
 
