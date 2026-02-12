@@ -1288,8 +1288,21 @@ ZINCRBY results:sess123:counts 1 "option-1"
 - **Libraries:** gin (HTTP), lib/pq (Postgres), go-redis, kafka-go, jwt-go, zap (logging), prometheus/client_golang
 
 #### Frontend
-**Stack:** TypeScript + React 18 + Vite
-- **Libraries:** react-query (state), socket.io-client (WebSocket), tailwindcss, react-hook-form
+**Technology Choice: KMM + Compose Multiplatform**
+
+A native mobile approach was chosen over a web based solution due to the security nature of a voting system because the scale requirement (300M users, 250k RPS peak). Mobile platforms provide reliable device identification, biometric verification to prevent bot activity, and SSL pinning for secure communication.
+
+A web frontend would require a backend for frontend (BFF) layer to improve the security and the difficulty of obtaining a fixed device identifier, adding complexity without matching the security guarantees of a native app.
+
+### Application Architecture
+
+**Presentation Layer:**
+
+**Network Layer:**
+
+**Database Layer:**
+
+**Credential Stores:** Application tokens are stored in secure storage (Android Keystore / iOS Keychain). The network layer retrieves these tokens for authenticated API calls.
 
 #### Databases
 **Primary:** Amazon Aurora PostgreSQL 15
