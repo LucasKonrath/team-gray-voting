@@ -1341,13 +1341,13 @@ ZINCRBY results:sess123:counts 1 "option-1"
 **IaC:** Terraform (VPC, EKS, RDS, ElastiCache, MSK modules)
 
 #### Explicitly NOT Used
-❌ Serverless (Lambda) - Cold starts, latency unpredictability  
-❌ MongoDB - Restricted, need ACID guarantees  
-❌ GCP/Azure - AWS-only mandate  
-❌ OpenShift - Unnecessary overhead  
-❌ Monolithic architecture - Microservices required  
-❌ DynamoDB - Complex pricing, limited queries vs PostgreSQL  
-❌ Node.js backend - Go chosen for performance  
+Serverless (Lambda) - Cold starts, latency unpredictability  
+MongoDB - Restricted, need ACID guarantees  
+GCP/Azure - AWS-only mandate  
+OpenShift - Unnecessary overhead  
+Monolithic architecture - Microservices required  
+DynamoDB - Complex pricing, limited queries vs PostgreSQL  
+Node.js backend - Go chosen for performance  
 
 #### Cost Estimate (Monthly, 300M users, 250k RPS peak)
 - EKS (30 nodes): $3,873
