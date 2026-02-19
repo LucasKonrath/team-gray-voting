@@ -1431,13 +1431,12 @@ A native mobile approach was chosen over a web based solution due to the securit
 
 A web frontend would require a backend for frontend (BFF) layer to improve the security and the difficulty of obtaining a fixed device identifier, adding complexity without matching the security guarantees of a native app.
 
-### Application Architecture
+#### Application Architecture
+**Presentation Layer: ViewModels expose UI state via StateFlow, driving a unidirectional data flow. The UI layer, built with Compose Multiplatform screens and components, subscribes to state updates and dispatches user interactions back to the ViewModel.**
 
-**Presentation Layer:**
+**Network Layer: All communication with the Backend API passes through a Ktor Client configured with interceptors for API authentication and certificate pinning. The network layer also handles request/response caching to support the zero data loss requirement. If a vote is given during a transient network failure, it is persisted locally and retried.**
 
-**Network Layer:**
-
-**Database Layer:**
+**Database Layer: Room (SQLite) repositories provide local persistence for in-flight votes, session state, and cached data. This guarantees that a user's vote is never lost between submission and server acknowledgment.**
 
 **Credential Stores:** Application tokens are stored in secure storage (Android Keystore / iOS Keychain). The network layer retrieves these tokens for authenticated API calls.
 
