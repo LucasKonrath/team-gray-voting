@@ -492,26 +492,163 @@ Recommended Reading: [UML hidden gems](http://diego-pacheco.blogspot.com/2020/10
 
 ---
 
-#### **Trade-off 7: AWS WAF + Custom ML vs Third-party Bot Detection SaaS**
+# Trade-off 7: In-House ML Model vs Fully Managed Security
 
-**Decision: AWS WAF + Custom ML Model**
+## In-House ML Models
 
-**PROS (+)**
-* **Cost at Scale**: Fixed WAF pricing ($5/month + $1/million requests) vs SaaS's per-request pricing explodes at 250k RPS
-* **Customization**: Train ML model on specific voting patterns, adjust thresholds dynamically
-* **Data Privacy**: Vote data stays within AWS, no third-party data sharing compliance issues
-* **Integration**: Native ALB/CloudFront integration, minimal latency overhead (~1-2ms)
-* **Full Control**: Can implement sophisticated rules (device fingerprinting, behavioral analysis) tailored to voting
+### Pros
 
-**CONS (-)**
-* **Development Time**: Building and training ML models requires ML expertise, ongoing maintenance
-* **Lower Initial Accuracy**: Third-party SaaS has pre-trained models on billions of requests, higher day-1 detection
-* **Operational Burden**: Need to monitor model drift, retrain periodically, manage false positives
-* **Cold Start Problem**: Need historical data to train effectively - first voting session more vulnerable
+- **Full control** -- own every model, threshold, and decision rule with no vendor dependency
+- **Election-specific detection** -- train on voting-domain threats (ballot stuffing, registration fraud) that no vendor covers
+- **Transparency** -- full explainability for audits and regulatory reviews
+- **We own our data** -- no voter data leaves your infrastructure
+- **ownership** -- models and pipelines are reusable organizational assets
+- **No vendor lock-in** -- no contracts, no surprise pricing, no discontinuation risk
+
+### Cons
+
+- **Many months to production** -- a risk depending on delivery deadline
+- **Potentially much more expensive** -- for the whole development, infrastructure and mantainance
+- **No global threat intelligence** -- only sees your own traffic; vendors see billions of attacks across millions of sites/clients
+- **blind spot** -- cannot detect what it has never been trained on
+- **High false positive risk** -- immature models block legitimate voters, it takes time and a lot of data to have a mature model
+- **Scarce talent** -- we need data scientist to develop/support the solution
+- **Model drift** -- we should ourselves retrain the model periodically
+- **Hard to keep SLA ourselves** 
 
 ---
 
+## Fully Managed Solutions
+
+Radware, AWS WAF + Shield, Cloudflare, Akamai, etc
+
+### Pros
+
+- **Days to deploy** -- production-ready within any election timeline
+- **Very mature solution/model** -- solution refined across thousands of enterprises and billions of daily requests
+- **Full coverage from day one** -- WAF, DDoS, bot, API, and client-side protection included
+- **Low operational burden** -- managed SOC options eliminate the need for a dedicated team
+- **Predictable cost** -- a reasonable usage plan with no hiring or infrastructure surprises
+- **SLA-backed reliability** -- guaranteed uptime with dedicated incident response
+
+### Cons
+
+- **Vendor lock-in** -- switching requires re-implementing all rules and policies
+- **Limited customization** -- cannot modify underlying detection algorithms
+- **Third-party data exposure** -- voter traffic processed by an external party
+- **Opaque decisions** -- we might not fully undestand why a request/vote/action was blocked
+- **No election-specific detection** -- unaware of voting-domain threats
+- **Vendor outage risk** -- if the vendor goes down, protection disappears
+
+---
+
+## My Recommendation
+
+- Use managed services as the primary security layer. It can be the only one too. Reasonable for a solid MVP.
+- Build custom ML only for voting-specific analytics that vendors cannot provide
+- Never rely on in-house ML as the only line of defense, build fall-back simple solutions too.
+
 <BR/>Recommended reading: [Tradeoffs](http://diego-pacheco.blogspot.com/2023/07/tradeoffs.html)
+
+# Trade-offs 8: Long Polling vs Websocket vs HTTP3/QUIC
+
+* LONG POLLING 
+
+Flow
+1. Client sends an HTTP request to the server;
+2. Server holds the connection open (doesn't respond immediately);
+3. When new data arrives, server sends the response;
+4. Client immediately sends another request;
+5. If no data arrives within the timeout period, server sends an empty response and client reconnects.
+
+Use cases: Chat applications, Fallback mechanism, Server-initiated updates and, Moderate scale
+
+|---------------------------------------|---------------------------------------|
+| Pros 									| Cons 									|
+|---------------------------------------|---------------------------------------|
+| Near real-time						| Latency								|
+| Simpler to implement					| HTTP overhead							|
+| Works through proxies and firewalls	| Resource intensive					|
+|---------------------------------------|---------------------------------------|
+
+* SSE
+
+Flow
+1. Client opens a connection using the EventSource API;
+2. Server keeps the connection open and sends events as they occur;
+3. Events are sent as plain text in a specific format;
+4. If the connection drops, the browser automatically reconnects;
+5. Server can send different event types for clients to handle differently.
+
+Use cases: Live feeds, Real-time dashboards, Notifications and, Progress Bar.
+
+|---------------------------------------|---------------------------------------|
+| Pros 									| Cons 									|
+|---------------------------------------|---------------------------------------|
+| Simple API							| Unidirectional only					|
+| Text-based							| No binary data						|
+| HTTP/2 multiplexing					| 										|
+| Automatic reconnection				| 										|
+|---------------------------------------|---------------------------------------|
+
+* WEBSOCKET
+
+Flow
+1. Client initiates a WebSocket handshake via HTTP upgrade request;
+2. Server accepts and upgrades the connection from HTTP to WebSocket;
+3. Both sides can now send messages freely;
+4. Connection stays open until either side closes it.
+
+Use cases: Chat applications, Multiplayer games, Trading platforms and, Live interactions.
+
+|---------------------------------------|---------------------------------------|
+| Pros 									| Cons 									|
+|---------------------------------------|---------------------------------------|
+| Low Latency							| Stateful connections					|
+| Bidirectional							| Connection management					|
+| Low overhead							| Proxy and firewall issues				|
+| Subprotocols							| More complex than HTTP				|
+|---------------------------------------|---------------------------------------|
+
+* HTTP/3 QUIC
+
+Flow
+1. Client initiates a HTTP/2 QUIC via TCP + TLS Handshake
+2. Server response from HTTP/2 + Alt-Svc header
+3. Both sides can now send messages from HTTP/3
+4. Connection can be migrated if the client change the IP
+
+Use cases: Accelerated Web Browsing.
+
+|---------------------------------------|---------------------------------------|
+| Pros 									| Cons 									|
+|---------------------------------------|---------------------------------------|
+| Performance							| More complex than TCP					|
+| Security								| UDP limitations (some blocks)			|
+| Connections migration					| Adoption (it is new)					|
+|---------------------------------------|---------------------------------------|
+
+# Tradeoffs 10: Social Login vs Custom Registration
+
+Tradeoffs (Pros/Cons) of  social social login for a saas voting app vs. custom registration
+
+Pros
+* Fast signup and higher conversion
+* Lower password burden
+* Better baseline security
+* Reliable identity signals
+* Less UX work
+
+Cons
+* Dependency on third parties
+* Account linking complexity
+* Not universal
+* Privacy concerns
+* How to manage voting eligibility? i.e. prevent ballot stuffing? i.e. enforce one person, one vote?
+
+Ideas:
+* Fingerprinting
+* 2FA
 
 ### 🌏 7. For each key major component
 
