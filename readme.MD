@@ -49,7 +49,7 @@ Recommended Learning: [Education vs Learning](http://diego-pacheco.blogspot.com/
 4. Perfect Availability: We target 99.99% uptime, not 100%. Planned maintenance windows and graceful degradation are acceptable over extreme complexity.
 5. Complex Blockchain/Consensus: While vote integrity is critical, we avoid blockchain or complex consensus protocols (Paxos/Raft beyond managed services) due to performance overhead.
 6. Real-time Analytics/BI: Realtime vote counts are required, but complex analytics dashboards, historical trending, and data warehousing are out of scope.
-7. Mobile Native Apps: Focus on web-first responsive design. No native iOS/Android apps, though mobile web must be fully functional.
+7. Mobile Native Apps: Focus on native-first design. iOS/Android apps must provide full access to device-level security capabilities, including biometric verification, reliable device identification, and certificate pinning.
 8. Automated Rollback for Everything: Critical failures need manual intervention and analysis. Not everything should auto-rollback to prevent cascading issues.
 9. Cost Optimization at All Costs: Performance and reliability take precedence over cost. We won't compromise on redundancy or over-provisioning for peak capacity.
 ```
@@ -1432,6 +1432,7 @@ A native mobile approach was chosen over a web based solution due to the securit
 A web frontend would require a backend for frontend (BFF) layer to improve the security and the difficulty of obtaining a fixed device identifier, adding complexity without matching the security guarantees of a native app.
 
 #### Application Architecture
+
 **Presentation Layer: ViewModels expose UI state via StateFlow, driving a unidirectional data flow. The UI layer, built with Compose Multiplatform screens and components, subscribes to state updates and dispatches user interactions back to the ViewModel.**
 
 **Network Layer: All communication with the Backend API passes through a Ktor Client configured with interceptors for API authentication and certificate pinning. The network layer also handles request/response caching to support the zero data loss requirement. If a vote is given during a transient network failure, it is persisted locally and retried.**
