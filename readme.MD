@@ -650,6 +650,32 @@ Ideas:
 * Fingerprinting
 * 2FA
 
+#### **Trade-off 9: Web vs Mobile Native**
+
+**Decision: Mobile Native**
+
+**PROS (+)**
+* **Reliable Device ID & Biometrics**: Native platforms provide hardware device identification and biometric verification, essential to enforce one vote per user and prevent bot activity
+* **SSL Pinning**: Certificate pinning at the native layer ensures secure communication, preventing "man in the middle" attacks on vote submissions
+
+**CONS (-)**
+* **Requires Download**: Users must install the app, adding onboarding friction for a 300M user base
+* **Slow Delivery Cycle**: Every update must go through store review, limiting the speed of critical patches
+
+---
+
+#### **Trade-off 10: React Native vs KMM + Compose Multiplatform**
+
+**Decision: KMM + Compose Multiplatform**
+
+**PROS (+)**
+* **Native Performance**: No JavaScript bridge overhead
+* **Identical UI & Strong Typing**: Compose Multiplatform delivers a consistent experience across iOS/Android, and Kotlin's type system reduces runtime errors 
+
+**CONS (-)**
+* **Native Knowledge Required**: Users must install the app, adding onboarding friction for a 300M user base
+* **No OTA Updates:** All releases go through store review, preventing quick hotfixes
+
 ### 🌏 7. For each key major component
 
 ---
