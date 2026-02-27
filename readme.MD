@@ -96,84 +96,6 @@ Here there will be a bunch of diagrams, to understand the solution.
   - Kafka for event streaming and async processing
 - **Observability**: Prometheus/Grafana for metrics, CloudWatch for logs, X-Ray for tracing
 
-### 🗂️ 5.1.1 Database Architecture: Avoiding the Distributed Monolith
-
-To ensure true service independence and avoid creating a distributed monolith, the database is split into two separate, autonomous databases: one for the `UserService` and one for the `VoteService`.
-
-#### High-Level Architecture
-
-This separation enforces a clean boundary between user identity and voting data. The services communicate via APIs, not by sharing a database. For example, when a vote is cast, the `VoteService` validates the user by making an API call to the `UserService`.
-
-```mermaid
-graph TD
-    subgraph "Client Application (Web/Mobile)"
-        A[Client]
-    end
-
-    subgraph "API Gateway"
-        B[Gateway]
-    end
-
-    subgraph "UserService"
-        C[User Service API]
-        D[USER Database]
-        C -- Manages --> D
-    end
-
-    subgraph "VoteService"
-        E[Vote Service API]
-        F[VOTES Database]
-        E -- Manages --> F
-    end
-
-    A --> B
-    B -- /users/** --> C
-    B -- /votes/** --> E
-    E -- Validates User --> C
-```
-
-#### Data Models
-
-This split is reflected in the data models for each database.
-
-##### 1. USER Database (Managed by UserService)
-
-This database is the single source of truth for all user-related information.
-
-*   **`users`**
-    *   `id`: UUID (Primary Key)
-    *   `username`: VARCHAR(255) (Unique)
-    *   `email`: VARCHAR(255) (Unique)
-    *   `password_hash`: VARCHAR(255)
-    *   `created_at`: TIMESTAMP
-    *   `updated_at`: TIMESTAMP
-
-##### 2. VOTES Database (Managed by VoteService)
-
-This database stores all data related to polls and votes. It references `user_id` from the `USER` database, but crucially, without a direct foreign key constraint. This maintains loose coupling between the services. Data integrity is enforced at the application layer.
-
-*   **`polls`**
-    *   `id`: UUID (Primary Key)
-    *   `question`: TEXT
-    *   `created_by_user_id`: UUID (References `users.id` in the USER database)
-    *   `created_at`: TIMESTAMP
-    *   `updated_at`: TIMESTAMP
-
-*   **`poll_options`**
-    *   `id`: UUID (Primary Key)
-    *   `poll_id`: UUID (Foreign Key to `polls.id`)
-    *   `option_text`: VARCHAR(255)
-    *   `created_at`: TIMESTAMP
-
-*   **`votes`**
-    *   `id`: UUID (Primary Key)
-    *   `poll_id`: UUID (Foreign Key to `polls.id`)
-    *   `poll_option_id`: UUID (Foreign Key to `poll_options.id`)
-    *   `user_id`: UUID (References `users.id` in the USER database)
-    *   `created_at`: TIMESTAMP
-    *   **Constraint**: `UNIQUE(poll_id, user_id)` (Enforced by the application)
-
-This database separation is a critical architectural decision that supports the principles of microservices, enabling independent scaling, deployment, and maintenance of the `UserService` and `VoteService`.
 
 #### 🗂️ 5.2 Deployment Architecture
 
@@ -1221,7 +1143,7 @@ error_budget_remaining = burn rate calculation
 
 ### 🖹 10. Data Store Designs
 
-Reflecting the database split mentioned in section 5.1.1, we have two primary PostgreSQL databases, along with other data stores for caching and messaging.
+We have two primary PostgreSQL databases, along with other data stores for caching and messaging.
 
 #### 10.1 USER Database (Aurora PostgreSQL)
 
