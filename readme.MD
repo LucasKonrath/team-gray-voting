@@ -96,6 +96,85 @@ Here there will be a bunch of diagrams, to understand the solution.
   - Kafka for event streaming and async processing
 - **Observability**: Prometheus/Grafana for metrics, CloudWatch for logs, X-Ray for tracing
 
+### 🗂️ 5.1.1 Database Architecture: Avoiding the Distributed Monolith
+
+To ensure true service independence and avoid creating a distributed monolith, the database is split into two separate, autonomous databases: one for the `UserService` and one for the `VoteService`.
+
+#### High-Level Architecture
+
+This separation enforces a clean boundary between user identity and voting data. The services communicate via APIs, not by sharing a database. For example, when a vote is cast, the `VoteService` validates the user by making an API call to the `UserService`.
+
+```mermaid
+graph TD
+    subgraph "Client Application (Web/Mobile)"
+        A[Client]
+    end
+
+    subgraph "API Gateway"
+        B[Gateway]
+    end
+
+    subgraph "UserService"
+        C[User Service API]
+        D[USER Database]
+        C -- Manages --> D
+    end
+
+    subgraph "VoteService"
+        E[Vote Service API]
+        F[VOTES Database]
+        E -- Manages --> F
+    end
+
+    A --> B
+    B -- /users/** --> C
+    B -- /votes/** --> E
+    E -- Validates User --> C
+```
+
+#### Data Models
+
+This split is reflected in the data models for each database.
+
+##### 1. USER Database (Managed by UserService)
+
+This database is the single source of truth for all user-related information.
+
+*   **`users`**
+    *   `id`: UUID (Primary Key)
+    *   `username`: VARCHAR(255) (Unique)
+    *   `email`: VARCHAR(255) (Unique)
+    *   `password_hash`: VARCHAR(255)
+    *   `created_at`: TIMESTAMP
+    *   `updated_at`: TIMESTAMP
+
+##### 2. VOTES Database (Managed by VoteService)
+
+This database stores all data related to polls and votes. It references `user_id` from the `USER` database, but crucially, without a direct foreign key constraint. This maintains loose coupling between the services. Data integrity is enforced at the application layer.
+
+*   **`polls`**
+    *   `id`: UUID (Primary Key)
+    *   `question`: TEXT
+    *   `created_by_user_id`: UUID (References `users.id` in the USER database)
+    *   `created_at`: TIMESTAMP
+    *   `updated_at`: TIMESTAMP
+
+*   **`poll_options`**
+    *   `id`: UUID (Primary Key)
+    *   `poll_id`: UUID (Foreign Key to `polls.id`)
+    *   `option_text`: VARCHAR(255)
+    *   `created_at`: TIMESTAMP
+
+*   **`votes`**
+    *   `id`: UUID (Primary Key)
+    *   `poll_id`: UUID (Foreign Key to `polls.id`)
+    *   `poll_option_id`: UUID (Foreign Key to `poll_options.id`)
+    *   `user_id`: UUID (References `users.id` in the USER database)
+    *   `created_at`: TIMESTAMP
+    *   **Constraint**: `UNIQUE(poll_id, user_id)` (Enforced by the application)
+
+This database separation is a critical architectural decision that supports the principles of microservices, enabling independent scaling, deployment, and maintenance of the `UserService` and `VoteService`.
+
 #### 🗂️ 5.2 Deployment Architecture
 
 ```mermaid
@@ -731,14 +810,14 @@ classDiagram
 
 ##### 7.1.3 Persistence Model
 
-**PostgreSQL Table: `votes`**
+**VOTES Database - PostgreSQL Table: `votes`**
 
 ```sql
 CREATE TABLE votes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    session_id UUID NOT NULL,
-    option_id VARCHAR(100) NOT NULL,
+    user_id UUID NOT NULL, -- No foreign key constraint
+    poll_id UUID NOT NULL, -- No foreign key constraint to a sessions table
+    poll_option_id UUID NOT NULL,
     idempotency_key VARCHAR(255) NOT NULL UNIQUE,
     ip_address INET NOT NULL,
     user_agent TEXT,
@@ -747,25 +826,25 @@ CREATE TABLE votes (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    CONSTRAINT unique_user_session UNIQUE (user_id, session_id)
+    CONSTRAINT unique_user_poll UNIQUE (user_id, poll_id)
 );
 
 -- Indexes for performance
-CREATE INDEX idx_votes_session ON votes(session_id);
+CREATE INDEX idx_votes_poll ON votes(poll_id);
 CREATE INDEX idx_votes_user ON votes(user_id);
 CREATE INDEX idx_votes_created_at ON votes(created_at DESC);
-CREATE INDEX idx_votes_option ON votes(session_id, option_id);
+CREATE INDEX idx_votes_option ON votes(poll_id, poll_option_id);
 
--- Partitioning by session_id for horizontal scaling
+-- Partitioning by poll_id for horizontal scaling
 CREATE TABLE votes_partition_template (
     LIKE votes INCLUDING DEFAULTS INCLUDING CONSTRAINTS
-) PARTITION BY LIST (session_id);
+) PARTITION BY LIST (poll_id);
 ```
 
 **Redis Keys:**
 ```
-vote:lock:{user_id}:{session_id}     -> TTL 10 seconds (distributed lock)
-vote:dedupe:{user_id}:{session_id}   -> TTL 24 hours (deduplication check)
+vote:lock:{user_id}:{poll_id}     -> TTL 10 seconds (distributed lock)
+vote:dedupe:{user_id}:{poll_id}   -> TTL 24 hours (deduplication check)
 vote:rate:{ip_address}               -> TTL 60 seconds (rate limit counter)
 ```
 
@@ -773,27 +852,27 @@ vote:rate:{ip_address}               -> TTL 60 seconds (rate limit counter)
 
 **Idempotency Key Generation:**
 ```
-SHA256(user_id + session_id + option_id + timestamp_rounded_to_second)
+SHA256(user_id + poll_id + option_id + timestamp_rounded_to_second)
 ```
 
 **Deduplication Algorithm (Optimistic Locking with Redis + Postgres):**
 ```
-1. Check Redis: GET vote:dedupe:{user_id}:{session_id}
+1. Check Redis: GET vote:dedupe:{user_id}:{poll_id}
    - If exists: Return 409 Conflict immediately (fast path)
    
-2. Acquire Redis lock: SETNX vote:lock:{user_id}:{session_id} 1 EX 10
+2. Acquire Redis lock: SETNX vote:lock:{user_id}:{poll_id} 1 EX 10
    - If lock fails: Retry with exponential backoff (max 3 attempts)
    
-3. Double-check PostgreSQL: SELECT * FROM votes WHERE user_id = ? AND session_id = ?
+3. Double-check PostgreSQL: SELECT * FROM votes WHERE user_id = ? AND poll_id = ?
    - If exists: Release lock, return 409 Conflict
    
 4. Insert vote into PostgreSQL with idempotency_key
    - ON CONFLICT (idempotency_key) DO NOTHING
    - If no rows affected: Another request won the race, return 409
    
-5. Set Redis cache: SETEX vote:dedupe:{user_id}:{session_id} 86400 1
+5. Set Redis cache: SETEX vote:dedupe:{user_id}:{poll_id} 86400 1
    
-6. Release lock: DEL vote:lock:{user_id}:{session_id}
+6. Release lock: DEL vote:lock:{user_id}:{poll_id}
    
 7. Publish event to Kafka asynchronously
 ```
@@ -1228,7 +1307,11 @@ error_budget_remaining = burn rate calculation
 
 ### 🖹 10. Data Store Designs
 
-#### 10.1 Aurora PostgreSQL (Primary Data Store)
+Reflecting the database split mentioned in section 5.1.1, we have two primary PostgreSQL databases, along with other data stores for caching and messaging.
+
+#### 10.1 USER Database (Aurora PostgreSQL)
+
+This database is managed by the `UserService` and is the source of truth for user data.
 
 **Tables:**
 
@@ -1236,62 +1319,89 @@ error_budget_remaining = burn rate calculation
 ```sql
 CREATE TABLE users (
     id UUID PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     is_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 CREATE INDEX idx_users_email ON users(email);
 ```
 
-**`voting_sessions`** - Active voting sessions
+**Main Queries:**
+- Create user
+- Find user by email/id
+- Update user
+
+**Performance:** Connection pooling via PgBouncer.
+
+---
+
+#### 10.2 VOTES Database (Aurora PostgreSQL)
+
+This database is managed by the `VoteService`.
+
+**Tables:**
+
+**`polls`** (replaces `voting_sessions`)
 ```sql
-CREATE TABLE voting_sessions (
+CREATE TABLE polls (
     id UUID PRIMARY KEY,
-    title VARCHAR(500) NOT NULL,
+    question TEXT NOT NULL,
+    created_by_user_id UUID NOT NULL, -- No foreign key constraint
     status VARCHAR(20) DEFAULT 'active',
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL
 );
-CREATE INDEX idx_sessions_status ON voting_sessions(status);
+CREATE INDEX idx_polls_status ON polls(status);
 ```
 
-**`votes`** - All submitted votes (partitioned by session_id)
+**`poll_options`**
+```sql
+CREATE TABLE poll_options (
+    id UUID PRIMARY KEY,
+    poll_id UUID NOT NULL REFERENCES polls(id),
+    option_text VARCHAR(255) NOT NULL
+);
+```
+
+**`votes`** - All submitted votes (partitioned by poll_id)
 ```sql
 CREATE TABLE votes (
     id UUID PRIMARY KEY,
-    user_id UUID NOT NULL REFERENCES users(id),
-    session_id UUID NOT NULL REFERENCES voting_sessions(id),
-    option_id VARCHAR(100) NOT NULL,
+    user_id UUID NOT NULL, -- No foreign key constraint
+    poll_id UUID NOT NULL REFERENCES polls(id),
+    poll_option_id UUID NOT NULL REFERENCES poll_options(id),
     idempotency_key VARCHAR(255) NOT NULL UNIQUE,
     ip_address INET NOT NULL,
     bot_score DECIMAL(3,2),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    CONSTRAINT unique_user_session UNIQUE (user_id, session_id)
-) PARTITION BY LIST (session_id);
+    CONSTRAINT unique_user_poll UNIQUE (user_id, poll_id)
+) PARTITION BY LIST (poll_id);
 
-CREATE INDEX idx_votes_session ON votes(session_id);
-CREATE INDEX idx_votes_option ON votes(session_id, option_id);
+CREATE INDEX idx_votes_poll ON votes(poll_id);
+CREATE INDEX idx_votes_option ON votes(poll_id, poll_option_id);
 ```
 
 **Materialized View: `vote_counts`** (refreshed every 5 seconds)
 ```sql
 CREATE MATERIALIZED VIEW vote_counts AS
-SELECT session_id, option_id, COUNT(*) as vote_count
+SELECT poll_id, poll_option_id, COUNT(*) as vote_count
 FROM votes
-GROUP BY session_id, option_id;
+GROUP BY poll_id, poll_option_id;
 ```
 
 **Main Queries:**
 - Insert vote: `INSERT INTO votes (...) ON CONFLICT (idempotency_key) DO NOTHING` (~10ms)
-- Check duplicate: `SELECT id FROM votes WHERE user_id = ? AND session_id = ?` (~5ms)
-- Get results: `SELECT * FROM vote_counts WHERE session_id = ?` (~20ms)
+- Check duplicate: `SELECT id FROM votes WHERE user_id = ? AND poll_id = ?` (~5ms)
+- Get results: `SELECT * FROM vote_counts WHERE poll_id = ?` (~20ms)
 
-**Performance:** 100k writes/sec per instance, connection pooling via PgBouncer (10k connections)
+**Performance:** 100k writes/sec per instance, connection pooling via PgBouncer.
 
 ---
 
-#### 10.2 ElastiCache Redis (Cache + Locks)
+#### 10.3 ElastiCache Redis (Cache + Locks)
 
 **Configuration:** Cluster mode, 3 shards, 2 replicas per shard, volatile-lru eviction
 
@@ -1316,7 +1426,7 @@ ZINCRBY results:sess123:counts 1 "option-1"
 
 ---
 
-#### 10.3 Amazon MSK (Kafka - Event Streaming)
+#### 10.4 Amazon MSK (Kafka - Event Streaming)
 
 **Configuration:** 3 brokers, kafka.m5.xlarge, 1 TB/broker, 7-day retention
 
@@ -1344,7 +1454,7 @@ ZINCRBY results:sess123:counts 1 "option-1"
 
 ---
 
-#### 10.4 Amazon S3 (Audit Logs & Backups)
+#### 10.5 Amazon S3 (Audit Logs & Backups)
 
 **Buckets:**
 - `voting-audit-logs` - 7-year retention, Standard -> Glacier after 90 days
@@ -1358,7 +1468,8 @@ ZINCRBY results:sess123:counts 1 "option-1"
 
 | Store | Use Case | Read Latency | Write Latency | Consistency | Scaling |
 |-------|----------|--------------|---------------|-------------|---------|
-| Aurora PostgreSQL | Source of truth | 5-20ms | 10ms | Strong ACID | Vertical + Replicas |
+| Aurora PostgreSQL (Users) | User data | 5-20ms | 10ms | Strong ACID | Vertical + Replicas |
+| Aurora PostgreSQL (Votes) | Voting data | 5-20ms | 10ms | Strong ACID | Vertical + Replicas |
 | Redis | Cache, locks | < 1ms | < 1ms | Eventual | Horizontal shards |
 | Kafka | Event streaming | N/A | 10ms | Ordered per partition | Add partitions |
 | S3 | Archival | 50-100ms | 50ms | Eventual | Unlimited |
@@ -1388,9 +1499,11 @@ A web frontend would require a backend for frontend (BFF) layer to improve the s
 **Credential Stores:** Application tokens are stored in secure storage (Android Keystore / iOS Keychain). The network layer retrieves these tokens for authenticated API calls.
 
 #### Databases
-**Primary:** Amazon Aurora PostgreSQL 15
-- **Config:** db.r6g.4xlarge, 1 writer + 2 replicas, auto-scaling storage (128 TB max)
-- **Why:** Strong ACID guarantees, proven scale, AWS managed, NOT MongoDB (explicit restriction)
+**Primary Databases:** 2 x Amazon Aurora PostgreSQL 15
+- **USER Database:** Manages user data.
+- **VOTES Database:** Manages polls and votes data.
+- **Config (per cluster):** db.r6g.4xlarge, 1 writer + 2 replicas, auto-scaling storage (128 TB max)
+- **Why:** Strong ACID guarantees, service separation, proven scale, AWS managed, NOT MongoDB (explicit restriction)
 
 **Cache:** Amazon ElastiCache Redis 7.0
 - **Config:** Cluster mode, cache.r6g.xlarge, 3 shards, 2 replicas per shard
@@ -1447,12 +1560,12 @@ Node.js backend - Go chosen for performance
 
 #### Cost Estimate (Monthly, 300M users, 250k RPS peak)
 - EKS (30 nodes): $3,873
-- Aurora PostgreSQL: $3,500
+- 2 x Aurora PostgreSQL: $7,000
 - ElastiCache Redis: $2,800
 - MSK Kafka: $1,800
 - ALB + CloudFront: $1,350
 - Other (S3, CloudWatch): $450
-- **Total: ~$14,773/month** (~$0.000015 per vote)
+- **Total: ~$18,273/month** (~$0.000019 per vote)
 
 ### 🖹 12. References
 
