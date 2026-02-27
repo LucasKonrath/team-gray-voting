@@ -77,7 +77,7 @@ Here there will be a bunch of diagrams, to understand the solution.
 
 #### 🗂️ 5.1 Overall Architecture
 
-![alt text](image.png)
+![alt text](image-6.png)
 
 **Key Components:**
 - **Client Layer**: Mobile apps accessing the system
