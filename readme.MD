@@ -443,71 +443,7 @@ Ideas:
 
 ##### 7.1.1 Class Diagram
 
-```mermaid
-classDiagram
-    class VoteController {
-        +SubmitVote(ctx Context, req VoteRequest) VoteResponse
-        +GetVoteStatus(ctx Context, voteID string) VoteStatusResponse
-        -validateRequest(req VoteRequest) error
-        -checkRateLimit(userID string) error
-    }
-    
-    class VoteService {
-        -deduplicationService DeduplicationService
-        -botDetectionService BotDetectionService
-        -voteRepository VoteRepository
-        -eventPublisher EventPublisher
-        +ProcessVote(ctx Context, vote Vote) (string, error)
-        +GetVote(ctx Context, voteID string) (Vote, error)
-        -generateIdempotencyKey(vote Vote) string
-    }
-    
-    class DeduplicationService {
-        -redisClient RedisClient
-        -postgresRepo VoteRepository
-        +CheckAndLockVote(ctx Context, userID string, sessionID string) (bool, error)
-        +HasUserVoted(ctx Context, userID string, sessionID string) (bool, error)
-        -acquireDistributedLock(key string, ttl int) (bool, error)
-    }
-    
-    class BotDetectionService {
-        -mlModel MLModel
-        -redisClient RedisClient
-        +AnalyzeRequest(ctx Context, metadata RequestMetadata) (float64, error)
-        +IsSuspicious(score float64) bool
-        -extractFeatures(metadata RequestMetadata) Features
-    }
-    
-    class VoteRepository {
-        -db PostgresDB
-        +InsertVote(ctx Context, vote Vote) error
-        +GetVoteByID(ctx Context, voteID string) (Vote, error)
-        +GetVoteByUserSession(ctx Context, userID string, sessionID string) (Vote, error)
-    }
-    
-    class EventPublisher {
-        -kafkaProducer KafkaProducer
-        +PublishVoteEvent(ctx Context, event VoteEvent) error
-    }
-    
-    class Vote {
-        +ID string
-        +UserID string
-        +SessionID string
-        +OptionID string
-        +Timestamp time.Time
-        +IdempotencyKey string
-        +IPAddress string
-        +UserAgent string
-    }
-    
-    VoteController --> VoteService
-    VoteService --> DeduplicationService
-    VoteService --> BotDetectionService
-    VoteService --> VoteRepository
-    VoteService --> EventPublisher
-    DeduplicationService --> VoteRepository
-```
+![alt text](image-3.png)
 
 ##### 7.1.2 Contract Documentation
 
@@ -655,57 +591,7 @@ Burst: 5 additional requests allowed
 
 ##### 7.2.1 Class Diagram
 
-```mermaid
-classDiagram
-    class ResultsController {
-        +GetResults(ctx Context, sessionID string) ResultsResponse
-        +SubscribeToResults(ctx Context, sessionID string) WebSocketConnection
-    }
-    
-    class ResultsService {
-        -cacheService CacheService
-        -aggregationService AggregationService
-        -kafkaConsumer KafkaConsumer
-        +GetCurrentResults(ctx Context, sessionID string) Results
-        +StreamResults(ctx Context, sessionID string, conn WebSocket)
-        -refreshCache(sessionID string) error
-    }
-    
-    class AggregationService {
-        -db PostgresDB
-        -redisClient RedisClient
-        +ComputeResults(ctx Context, sessionID string) Results
-        +IncrementVoteCount(ctx Context, sessionID string, optionID string)
-        -buildResultsFromDB(sessionID string) Results
-    }
-    
-    class CacheService {
-        -redisClient RedisClient
-        +GetCachedResults(ctx Context, sessionID string) (Results, error)
-        +SetCachedResults(ctx Context, sessionID string, results Results) error
-        +InvalidateCache(sessionID string) error
-    }
-    
-    class KafkaConsumer {
-        -consumer kafka.Consumer
-        +ConsumeVoteEvents(handler func(VoteEvent)) error
-        +Close() error
-    }
-    
-    class Results {
-        +SessionID string
-        +TotalVotes int64
-        +OptionCounts map[string]int64
-        +LastUpdated time.Time
-        +IsFinalized bool
-    }
-    
-    ResultsController --> ResultsService
-    ResultsService --> AggregationService
-    ResultsService --> CacheService
-    ResultsService --> KafkaConsumer
-    AggregationService --> CacheService
-```
+![alt text](image-4.png)
 
 ##### 7.2.2 Contract Documentation
 
@@ -817,63 +703,7 @@ Example:
 #### 7.3 Authentication Service
 
 ##### 7.3.1 Class Diagram
-
-```mermaid
-classDiagram
-    class AuthController {
-        +Login(ctx Context, req LoginRequest) LoginResponse
-        +Refresh(ctx Context, refreshToken string) TokenResponse
-        +Logout(ctx Context, userID string) LogoutResponse
-        +ValidateToken(ctx Context, token string) (Claims, error)
-    }
-    
-    class AuthService {
-        -userRepo UserRepository
-        -tokenService TokenService
-        -sessionService SessionService
-        +Authenticate(ctx Context, credentials Credentials) (User, error)
-        +GenerateTokens(user User) (TokenPair, error)
-        +RevokeSession(ctx Context, sessionID string) error
-    }
-    
-    class TokenService {
-        -jwtSecret string
-        -redisClient RedisClient
-        +GenerateAccessToken(user User) (string, error)
-        +GenerateRefreshToken(user User) (string, error)
-        +ValidateAccessToken(token string) (Claims, error)
-        +RevokeToken(tokenID string) error
-    }
-    
-    class SessionService {
-        -redisClient RedisClient
-        -sessionRepo SessionRepository
-        +CreateSession(ctx Context, userID string) (Session, error)
-        +GetSession(ctx Context, sessionID string) (Session, error)
-        +InvalidateSession(ctx Context, sessionID string) error
-    }
-    
-    class User {
-        +ID string
-        +Email string
-        +HashedPassword string
-        +IsVerified bool
-        +CreatedAt time.Time
-    }
-    
-    class Session {
-        +ID string
-        +UserID string
-        +CreatedAt time.Time
-        +ExpiresAt time.Time
-        +IPAddress string
-    }
-    
-    AuthController --> AuthService
-    AuthService --> TokenService
-    AuthService --> SessionService
-    AuthService --> UserRepository
-```
+![alt text](image-5.png)
 
 ##### 7.3.2 Contract Documentation
 
