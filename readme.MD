@@ -443,7 +443,7 @@ Ideas:
 
 ##### 7.1.1 Class Diagram
 
-![alt text](image-3.png)
+![alt text](image-9.png)
 
 ##### 7.1.2 Contract Documentation
 
@@ -591,7 +591,7 @@ Burst: 5 additional requests allowed
 
 ##### 7.2.1 Class Diagram
 
-![alt text](image-4.png)
+![alt text](image-8.png)
 
 ##### 7.2.2 Contract Documentation
 
@@ -703,7 +703,7 @@ Example:
 #### 7.3 Authentication Service
 
 ##### 7.3.1 Class Diagram
-![alt text](image-5.png)
+![alt text](image-7.png)
 
 ##### 7.3.2 Contract Documentation
 
