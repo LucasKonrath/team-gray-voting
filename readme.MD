@@ -1134,13 +1134,13 @@ DynamoDB - Complex pricing, limited queries vs PostgreSQL
 Node.js backend - Go chosen for performance  
 
 #### Cost Estimate (Monthly, 300M users, 250k RPS peak)
-- EKS (30 nodes): $3,873
-- 2 x Aurora PostgreSQL: $7,000
-- ElastiCache Redis: $2,800
-- MSK Kafka: $1,800
-- ALB + CloudFront: $1,350
-- Other (S3, CloudWatch): $450
-- **Total: ~$18,273/month** (~$0.000019 per vote)
+- EKS (30 nodes): ˜$10,000
+- 2 x Aurora PostgreSQL: ˜$14,000
+- ElastiCache Redis: ˜$6,000
+- MSK Kafka: $2,000
+- ALB + CloudFront: $4,000
+- Other (S3, CloudWatch): $2,000
+- **Total: ~$38,000/month** (~$0.15 per vote)
 
 ### 🖹 12. References
 
