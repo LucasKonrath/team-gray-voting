@@ -37,6 +37,7 @@ Restrictions:
 8. Observability: Distributed tracing (X-Ray), logging (CloudWatch), metrics (Prometheus/Grafana).
 9. Resilience and Fault Tolerance: Implement circuit breakers, bulkheads, retry with exponential backoff, graceful degradation, and chaos engineering practices.
 10. Microservices Modularity: Design independent, loosely-coupled services with well-defined APIs, allowing teams to deploy and scale components independently.
+11. Mobile Native Apps: Focus on native-first design. iOS/Android apps must provide full access to device-level security capabilities, including biometric verification, reliable device identification, and certificate pinning.
 ```
 Recommended Learning: [Education vs Learning](http://diego-pacheco.blogspot.com/2020/05/education-vs-learning.html)
 
@@ -49,9 +50,8 @@ Recommended Learning: [Education vs Learning](http://diego-pacheco.blogspot.com/
 4. Perfect Availability: We target 99.99% uptime, not 100%. Planned maintenance windows and graceful degradation are acceptable over extreme complexity.
 5. Complex Blockchain/Consensus: While vote integrity is critical, we avoid blockchain or complex consensus protocols (Paxos/Raft beyond managed services) due to performance overhead.
 6. Real-time Analytics/BI: Realtime vote counts are required, but complex analytics dashboards, historical trending, and data warehousing are out of scope.
-7. Mobile Native Apps: Focus on native-first design. iOS/Android apps must provide full access to device-level security capabilities, including biometric verification, reliable device identification, and certificate pinning.
-8. Automated Rollback for Everything: Critical failures need manual intervention and analysis. Not everything should auto-rollback to prevent cascading issues.
-9. Cost Optimization at All Costs: Performance and reliability take precedence over cost. We won't compromise on redundancy or over-provisioning for peak capacity.
+7. Automated Rollback for Everything: Critical failures need manual intervention and analysis. Not everything should auto-rollback to prevent cascading issues.
+8. Cost Optimization at All Costs: Performance and reliability take precedence over cost. We won't compromise on redundancy or over-provisioning for peak capacity.
 ```
 Recommended Reading: [Requirements are dangerous](http://diego-pacheco.blogspot.com/2021/01/requirements-are-dangerous.html)
 
