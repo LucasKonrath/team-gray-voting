@@ -251,7 +251,9 @@ Here there will be a bunch of diagrams, to understand the solution.
 
 ---
 
-# Trade-off 7: In-House ML Model vs Fully Managed Security
+#### **Trade-off 7: In-House ML Model vs Fully Managed Security**
+
+**Decision: Hybrid - Fully managed in the beginnign and in-house training with data**
 
 ## In-House ML Models
 
@@ -299,17 +301,8 @@ Radware, AWS WAF + Shield, Cloudflare, Akamai, etc
 - **No election-specific detection** -- unaware of voting-domain threats
 - **Vendor outage risk** -- if the vendor goes down, protection disappears
 
----
 
-## My Recommendation
-
-- Use managed services as the primary security layer. It can be the only one too. Reasonable for a solid MVP.
-- Build custom ML only for voting-specific analytics that vendors cannot provide
-- Never rely on in-house ML as the only line of defense, build fall-back simple solutions too.
-
-<BR/>Recommended reading: [Tradeoffs](http://diego-pacheco.blogspot.com/2023/07/tradeoffs.html)
-
-# Trade-offs 8: Long Polling vs Websocket vs HTTP3/QUIC
+#### **Trade-offs 8: Long Polling vs Websocket vs HTTP3/QUIC**
 
 * LONG POLLING 
 
@@ -322,13 +315,11 @@ Flow
 
 Use cases: Chat applications, Fallback mechanism, Server-initiated updates and, Moderate scale
 
-|---------------------------------------|---------------------------------------|
 | Pros 									| Cons 									|
 |---------------------------------------|---------------------------------------|
 | Near real-time						| Latency								|
 | Simpler to implement					| HTTP overhead							|
 | Works through proxies and firewalls	| Resource intensive					|
-|---------------------------------------|---------------------------------------|
 
 * SSE
 
@@ -341,14 +332,12 @@ Flow
 
 Use cases: Live feeds, Real-time dashboards, Notifications and, Progress Bar.
 
-|---------------------------------------|---------------------------------------|
 | Pros 									| Cons 									|
 |---------------------------------------|---------------------------------------|
 | Simple API							| Unidirectional only					|
 | Text-based							| No binary data						|
 | HTTP/2 multiplexing					| 										|
 | Automatic reconnection				| 										|
-|---------------------------------------|---------------------------------------|
 
 * WEBSOCKET
 
@@ -360,14 +349,12 @@ Flow
 
 Use cases: Chat applications, Multiplayer games, Trading platforms and, Live interactions.
 
-|---------------------------------------|---------------------------------------|
 | Pros 									| Cons 									|
 |---------------------------------------|---------------------------------------|
 | Low Latency							| Stateful connections					|
 | Bidirectional							| Connection management					|
 | Low overhead							| Proxy and firewall issues				|
 | Subprotocols							| More complex than HTTP				|
-|---------------------------------------|---------------------------------------|
 
 * HTTP/3 QUIC
 
@@ -379,15 +366,13 @@ Flow
 
 Use cases: Accelerated Web Browsing.
 
-|---------------------------------------|---------------------------------------|
 | Pros 									| Cons 									|
 |---------------------------------------|---------------------------------------|
 | Performance							| More complex than TCP					|
 | Security								| UDP limitations (some blocks)			|
 | Connections migration					| Adoption (it is new)					|
-|---------------------------------------|---------------------------------------|
 
-# Tradeoffs 10: Social Login vs Custom Registration
+#### **Tradeoffs 10: Social Login vs Custom Registration**
 
 Tradeoffs (Pros/Cons) of  social social login for a saas voting app vs. custom registration
 
